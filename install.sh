@@ -24,7 +24,7 @@ Options:
   --prefix DIR   Install layout under DIR (default: ~/.local)
   --system       Same as --prefix=/usr/local
   --auto, -y     Non-interactive (skip confirmation)
-  --uninstall    Remove gsbuilder-ai and share data from PREFIX
+  --uninstall    Remove gsbuilder-ai, gsbuilder.ai, and share data from PREFIX
 
 After install (user scope), add to ~/.zshrc or ~/.bashrc if needed:
   export PATH="$HOME/.local/bin:$PATH"
@@ -79,9 +79,9 @@ SRC_BIN="$ROOT/gsbuilder-ai"
 SRC_BRAND="$ROOT/brand"
 
 run_uninstall() {
-  rm -f "$BINDIR/gsbuilder-ai" 2>/dev/null || true
+  rm -f "$BINDIR/gsbuilder-ai" "$BINDIR/gsbuilder.ai" 2>/dev/null || true
   rm -rf "$SHARE" 2>/dev/null || true
-  printf 'Removed %s and %s\n' "$BINDIR/gsbuilder-ai" "$SHARE"
+  printf 'Removed %s, %s, and %s\n' "$BINDIR/gsbuilder-ai" "$BINDIR/gsbuilder.ai" "$SHARE"
 }
 
 if [[ "$DO_UNINSTALL" -eq 1 ]]; then
@@ -107,6 +107,7 @@ install_files() {
   mkdir -p "$BINDIR" "$SHARE/brand"
   cp -f "$SRC_BIN" "$BINDIR/gsbuilder-ai"
   chmod +x "$BINDIR/gsbuilder-ai"
+  ln -sf gsbuilder-ai "$BINDIR/gsbuilder.ai"
   if [[ -d "$SRC_BRAND" ]]; then
     cp -f "$SRC_BRAND"/* "$SHARE/brand/" 2>/dev/null || true
   fi
@@ -116,6 +117,7 @@ if [[ "$PREFIX" == "/usr/local" ]] && [[ ! -w "$PREFIX/bin" ]] 2>/dev/null; then
   sudo mkdir -p "$BINDIR" "$SHARE/brand"
   sudo cp -f "$SRC_BIN" "$BINDIR/gsbuilder-ai"
   sudo chmod +x "$BINDIR/gsbuilder-ai"
+  sudo ln -sf gsbuilder-ai "$BINDIR/gsbuilder.ai"
   if [[ -d "$SRC_BRAND" ]]; then
     sudo cp -f "$SRC_BRAND"/* "$SHARE/brand/" 2>/dev/null || true
   fi
@@ -123,9 +125,9 @@ else
   install_files
 fi
 
-printf '\nInstalled:\n  %s\n  %s\n\n' "$BINDIR/gsbuilder-ai" "$SHARE/brand"
+printf '\nInstalled:\n  %s\n  %s (symlink)\n  %s\n\n' "$BINDIR/gsbuilder-ai" "$BINDIR/gsbuilder.ai" "$SHARE/brand"
 printf 'Ensure this directory is on your PATH:\n  %s\n' "$BINDIR"
 if [[ "$PREFIX" == "${HOME}/.local" ]]; then
   printf '\nExample:\n  export PATH="%s:$PATH"\n' "$BINDIR"
 fi
-printf '\nTest:\n  gsbuilder-ai version\n  gsbuilder-ai --help\n'
+printf '\nTest:\n  gsbuilder-ai version\n  gsbuilder.ai version\n  gsbuilder-ai --help\n'

@@ -7,7 +7,7 @@
 set -euo pipefail
 
 readonly BRAND_NAME="GSBUILDER.AI"
-readonly VERSION="1.2.0"
+readonly VERSION="1.2.1"
 readonly DEFAULT_EDITOR_APP="gsbuilder.ai"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -101,8 +101,9 @@ Install (optional — copies into PREFIX/bin and PREFIX/share):
   make install                  # same as install.sh --auto
 
 Run from a git clone without installing:
-  ./$PROG version
-  ./$PROG .
+  ./gsbuilder-ai version
+  ./gsbuilder.ai version   # same launcher (symlink in repo)
+  ./gsbuilder-ai .
 
 Examples:
   $PROG .
@@ -132,8 +133,13 @@ find_editor_cli() {
     return 0
   fi
   if command -v gsbuilder.ai >/dev/null 2>&1; then
-    command -v gsbuilder.ai
-    return 0
+    local g
+    g="$(command -v gsbuilder.ai)"
+    # Avoid exec recursion when gsbuilder.ai is a symlink to this launcher
+    if [[ ! "$g" -ef "${BASH_SOURCE[0]}" ]]; then
+      printf '%s' "$g"
+      return 0
+    fi
   fi
   if command -v cursor >/dev/null 2>&1; then
     command -v cursor
@@ -172,16 +178,40 @@ open_in_editor() {
   fi
 
   if [[ "$(uname -s)" == "Darwin" ]]; then
-    local app="${GSBUILDER_EDITOR_APP:-${CURSOR_APP:-$DEFAULT_EDITOR_APP}}"
-    local bundle="/Applications/${app}.app"
-    [[ -d "$bundle" ]] || bundle="$HOME/Applications/${app}.app"
-    if [[ -d "$bundle" ]]; then
-      exec open -a "$bundle" "$target"
-    fi
-    exec open -a "$app" "$target"
+    darwin_open_editor "$target"
   fi
 
   die "gsbuilder.ai CLI not found. In gsbuilder.ai: Command Palette → Shell Command: install editor command in PATH"
+}
+
+darwin_try_open_app() {
+  local app="$1" target="$2"
+  local bundle="/Applications/${app}.app"
+  [[ -d "$bundle" ]] || bundle="$HOME/Applications/${app}.app"
+  if [[ -d "$bundle" ]] && open -a "$bundle" "$target"; then
+    return 0
+  fi
+  if open -a "$app" "$target" 2>/dev/null; then
+    return 0
+  fi
+  return 1
+}
+
+darwin_open_editor() {
+  local target="$1"
+  local app="${GSBUILDER_EDITOR_APP:-${CURSOR_APP:-$DEFAULT_EDITOR_APP}}"
+  if darwin_try_open_app "$app" "$target"; then
+    exit 0
+  fi
+  # If default branding app is missing, fall back to Cursor when user did not override app name
+  if [[ "$app" == "$DEFAULT_EDITOR_APP" ]] && [[ -z "${GSBUILDER_EDITOR_APP:-}${CURSOR_APP:-}" ]]; then
+    if darwin_try_open_app "Cursor" "$target"; then
+      printf '%s: opened Cursor as fallback (install %s.app or set GSBUILDER_EDITOR_APP)\n' \
+        "$BRAND_NAME" "$DEFAULT_EDITOR_APP" >&2
+      exit 0
+    fi
+  fi
+  die "Could not open editor app \"$app\". Install the app or set GSBUILDER_EDITOR_APP / GSBUILDER_EDITOR_BIN"
 }
 
 cmd_which() {

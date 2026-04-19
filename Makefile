@@ -13,7 +13,7 @@ help:
 
 check:
 	bash -n gsbuilder-ai
-	chmod +x gsbuilder-ai install.sh
+	chmod +x gsbuilder-ai install.sh gsbuilder.ai
 
 run: check
 	./gsbuilder-ai version
