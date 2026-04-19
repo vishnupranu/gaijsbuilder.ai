@@ -6,7 +6,7 @@ PREFIX ?= $(HOME)/.local
 help:
 	@echo "GSBUILDER.AI — targets:"
 	@echo "  make check     — syntax-check gsbuilder-ai"
-	@echo "  make run       — run launcher version (no Cursor exec)"
+	@echo "  make run       — run launcher version (no editor exec)"
 	@echo "  make install   — install to PREFIX (default: ~/.local)"
 	@echo "  make install-system — install to /usr/local (may use sudo)"
 	@echo "  make uninstall — remove from PREFIX"
