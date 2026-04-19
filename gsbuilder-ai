@@ -7,7 +7,7 @@
 set -euo pipefail
 
 readonly BRAND_NAME="GSBUILDER.AI"
-readonly VERSION="1.2.1"
+readonly VERSION="1.3.0"
 readonly DEFAULT_EDITOR_APP="gsbuilder.ai"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -54,7 +54,7 @@ resolve_logo() {
     return 0
   fi
   local f
-  for f in "$BRAND_DIR/logo.svg" "$BRAND_DIR/logo.png" "$BRAND_DIR/logo.webp"; do
+  for f in "$BRAND_DIR/icon.svg" "$BRAND_DIR/logo.svg" "$BRAND_DIR/logo.png" "$BRAND_DIR/logo.webp"; do
     if [[ -r "$f" ]]; then
       printf '%s' "$f"
       return 0
@@ -68,7 +68,7 @@ banner_text() {
 }
 
 usage() {
-  local logo_line="(no logo file — add brand/logo.svg next to this script)"
+  local logo_line="(no logo file — add brand/icon.svg next to this script)"
   if p="$(resolve_logo 2>/dev/null)"; then
     logo_line="$p"
   fi
@@ -159,7 +159,7 @@ find_editor_cli() {
 cmd_logo() {
   local path
   if ! path="$(resolve_logo)"; then
-    die "No logo found. Set GSBUILDER_LOGO or add ${BRAND_DIR}/logo.svg"
+    die "No logo found. Set GSBUILDER_LOGO or add ${BRAND_DIR}/icon.svg"
   fi
   if [[ "$(uname -s)" == "Darwin" ]]; then
     exec open "$path"
