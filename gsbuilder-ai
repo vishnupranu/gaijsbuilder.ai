@@ -1,11 +1,44 @@
 #!/usr/bin/env bash
 # GSBUILDER.AI — opens your project in Cursor (CLI or macOS app) with brand assets
+#
+# CLI entry: all user-facing commands and flags are handled in main() below.
+# Optional env: GSBUILDER_HOME (directory that contains ./brand/), GSBUILDER_LOGO,
+# CURSOR_BIN, CURSOR_APP. This script is not the Adobe DNG SDK; no raw-image API.
 set -euo pipefail
 
 readonly BRAND_NAME="GSBUILDER.AI"
-readonly VERSION="1.0.0"
+readonly VERSION="1.1.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly BRAND_DIR="${SCRIPT_DIR}/brand"
+
+resolve_brand_dir() {
+  if [[ -n "${GSBUILDER_HOME:-}" && -d "${GSBUILDER_HOME}/brand" ]]; then
+    printf '%s' "${GSBUILDER_HOME}/brand"
+    return 0
+  fi
+  # install.sh layout: PREFIX/bin/gsbuilder-ai + PREFIX/share/gsbuilder-ai/brand
+  if [[ "$SCRIPT_DIR" == */bin ]]; then
+    local prefix="${SCRIPT_DIR%/bin}"
+    prefix="${prefix%/}"
+    if [[ -d "$prefix/share/gsbuilder-ai/brand" ]]; then
+      printf '%s' "$prefix/share/gsbuilder-ai/brand"
+      return 0
+    fi
+  fi
+  if [[ -d "$SCRIPT_DIR/brand" ]]; then
+    printf '%s' "$SCRIPT_DIR/brand"
+    return 0
+  fi
+  local d
+  for d in "$HOME/.local/share/gsbuilder-ai/brand" "/opt/homebrew/share/gsbuilder-ai/brand" "/usr/local/share/gsbuilder-ai/brand"; do
+    if [[ -d "$d" ]]; then
+      printf '%s' "$d"
+      return 0
+    fi
+  done
+  printf '%s' "$SCRIPT_DIR/brand"
+}
+
+readonly BRAND_DIR="$(resolve_brand_dir)"
 
 PROG="$(basename "$0")"
 
@@ -52,17 +85,38 @@ Commands:
   here                    Open current directory
   logo                    Open brand logo file (macOS: \`open\`; else print path)
   which                   Show \`cursor\` CLI path if installed
+  paths                   Show resolved script dir, brand dir, and Cursor CLI
   version                 Show $BRAND_NAME launcher version
 
 Environment:
+  GSBUILDER_HOME         Install root containing \`brand/\` (after ./install.sh)
   GSBUILDER_LOGO         Override path to logo image (svg/png/webp)
   CURSOR_APP             macOS Cursor app name or bundle (default: Cursor)
   CURSOR_BIN             Full path to \`cursor\` CLI (optional)
+
+Install (optional — copies into PREFIX/bin and PREFIX/share):
+  ./install.sh --auto          # ~/.local by default
+  make install                  # same as install.sh --auto
+
+Run from a git clone without installing:
+  ./$PROG version
+  ./$PROG .
 
 Examples:
   $PROG .
   $PROG open ~/projects/app
 EOF
+}
+
+cmd_paths() {
+  printf 'script:      %s\n' "${BASH_SOURCE[0]}"
+  printf 'script_dir:  %s\n' "$SCRIPT_DIR"
+  printf 'brand_dir:   %s\n' "$BRAND_DIR"
+  if bin="$(find_cursor_cli 2>/dev/null)"; then
+    printf 'cursor CLI:  %s\n' "$bin"
+  else
+    printf 'cursor CLI:  (not found — install from Cursor → Shell Command)\n'
+  fi
 }
 
 find_cursor_cli() {
@@ -146,6 +200,9 @@ main() {
       ;;
     which)
       cmd_which
+      ;;
+    paths)
+      cmd_paths
       ;;
     "")
       open_in_cursor "."
