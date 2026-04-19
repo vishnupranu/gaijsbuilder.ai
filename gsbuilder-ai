@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# GSBUILDER.AI — opens your project in Cursor (CLI or macOS app) with brand assets
+set -euo pipefail
+
+readonly BRAND_NAME="GSBUILDER.AI"
+readonly VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly BRAND_DIR="${SCRIPT_DIR}/brand"
+
+PROG="$(basename "$0")"
+
+die() {
+  printf '%s: %s\n' "$BRAND_NAME" "$*" >&2
+  exit 1
+}
+
+resolve_logo() {
+  if [[ -n "${GSBUILDER_LOGO:-}" && -r "$GSBUILDER_LOGO" ]]; then
+    printf '%s' "$GSBUILDER_LOGO"
+    return 0
+  fi
+  local f
+  for f in "$BRAND_DIR/logo.svg" "$BRAND_DIR/logo.png" "$BRAND_DIR/logo.webp"; do
+    if [[ -r "$f" ]]; then
+      printf '%s' "$f"
+      return 0
+    fi
+  done
+  return 1
+}
+
+banner_text() {
+  printf '%s\n' "$BRAND_NAME"
+}
+
+usage() {
+  local logo_line="(no logo file — add brand/logo.svg next to this script)"
+  if p="$(resolve_logo 2>/dev/null)"; then
+    logo_line="$p"
+  fi
+  cat <<EOF
+$(banner_text) — project launcher
+
+Logo: $logo_line
+  Run \`$PROG logo\` to open the logo in your default viewer (macOS).
+
+Usage: $PROG <command> [args]
+       $PROG [path]              Open path in Cursor (default: current directory)
+
+Commands:
+  open [dir]              Open directory in Cursor (default: .)
+  here                    Open current directory
+  logo                    Open brand logo file (macOS: \`open\`; else print path)
+  which                   Show \`cursor\` CLI path if installed
+  version                 Show $BRAND_NAME launcher version
+
+Environment:
+  GSBUILDER_LOGO         Override path to logo image (svg/png/webp)
+  CURSOR_APP             macOS Cursor app name or bundle (default: Cursor)
+  CURSOR_BIN             Full path to \`cursor\` CLI (optional)
+
+Examples:
+  $PROG .
+  $PROG open ~/projects/app
+EOF
+}
+
+find_cursor_cli() {
+  if [[ -n "${CURSOR_BIN:-}" && -x "$CURSOR_BIN" ]]; then
+    printf '%s' "$CURSOR_BIN"
+    return 0
+  fi
+  if command -v cursor >/dev/null 2>&1; then
+    command -v cursor
+    return 0
+  fi
+  local homebrew
+  for homebrew in /opt/homebrew/bin/cursor /usr/local/bin/cursor; do
+    if [[ -x "$homebrew" ]]; then
+      printf '%s' "$homebrew"
+      return 0
+    fi
+  done
+  return 1
+}
+
+cmd_logo() {
+  local path
+  if ! path="$(resolve_logo)"; then
+    die "No logo found. Set GSBUILDER_LOGO or add ${BRAND_DIR}/logo.svg"
+  fi
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    exec open "$path"
+  fi
+  printf '%s\n' "$path"
+}
+
+open_in_cursor() {
+  local target="${1:-.}"
+  target="$(cd "$target" 2>/dev/null && pwd || true)"
+  [[ -n "$target" ]] || die "not a directory: ${1:-.}"
+
+  local bin
+  if bin="$(find_cursor_cli 2>/dev/null)"; then
+    exec "$bin" "$target"
+  fi
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    local app="${CURSOR_APP:-Cursor}"
+    local bundle="/Applications/${app}.app"
+    [[ -d "$bundle" ]] || bundle="$HOME/Applications/${app}.app"
+    if [[ -d "$bundle" ]]; then
+      exec open -a "$bundle" "$target"
+    fi
+    exec open -a "$app" "$target"
+  fi
+
+  die "Cursor CLI not found. In Cursor: Command Palette → Shell Command: Install cursor command in PATH"
+}
+
+cmd_which() {
+  if bin="$(find_cursor_cli 2>/dev/null)"; then
+    printf '%s\n' "$bin"
+  else
+    die "cursor executable not on PATH (set CURSOR_BIN if needed)"
+  fi
+}
+
+main() {
+  case "${1:-}" in
+    -h|--help|help)
+      usage
+      ;;
+    -v|--version|version)
+      printf '%s launcher %s\n' "$BRAND_NAME" "$VERSION"
+      ;;
+    open)
+      shift
+      open_in_cursor "${1:-.}"
+      ;;
+    here)
+      open_in_cursor "."
+      ;;
+    logo)
+      cmd_logo
+      ;;
+    which)
+      cmd_which
+      ;;
+    "")
+      open_in_cursor "."
+      ;;
+    *)
+      if [[ "$1" == -* ]]; then
+        die "unknown option: $1 (try --help)"
+      fi
+      open_in_cursor "$1"
+      ;;
+  esac
+}
+
+main "$@"
